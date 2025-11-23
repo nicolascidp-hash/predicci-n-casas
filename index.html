@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción California</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-2xl max-w-lg w-full border border-gray-200">
+        <h1 class="text-3xl font-extrabold text-center text-blue-700 mb-2">🏡 Valor de Vivienda</h1>
+        <p class="text-center text-gray-500 mb-6 text-sm">Predicción con Random Forest</p>
+
+        <form id="houseForm" class="space-y-4">
+            
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Ingreso Real en Dólares -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Ingreso Anual ($)</label>
+                    <input type="number" id="income" value="50000" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required>
+                    <p class="text-xs text-gray-400 mt-1">Ej: 80000</p>
+                </div>
+                <!-- Edad -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Edad Casa (Años)</label>
+                    <input type="number" id="age" value="25" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Habitaciones -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Habitaciones Prom.</label>
+                    <input type="number" id="rooms" step="0.1" value="5.5" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+                <!-- Dormitorios -->
+                <div>
+                    <label class="block text-gray-700 text-sm font-bold mb-1">Dormitorios Prom.</label>
+                    <input type="number" id="bedrooms" step="0.1" value="1.0" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required>
+                </div>
+            </div>
+
+            <!-- Hogares -->
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-1">Población por Casa (Personas)</label>
+                <input type="number" id="households" step="0.1" value="2.5" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" required>
+            </div>
+
+            <!-- Ubicación -->
+            <div>
+                <label class="block text-gray-700 text-sm font-bold mb-1">Ubicación</label>
+                <select id="proximity" class="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="NEAR BAY">Bahía (NEAR BAY)</option>
+                    <option value="<1H OCEAN">Cerca Costa (&lt;1H OCEAN)</option>
+                    <option value="INLAND">Interior (INLAND)</option>
+                    <option value="NEAR OCEAN">Océano (NEAR OCEAN)</option>
+                    <option value="ISLAND">Isla (ISLAND)</option>
+                </select>
+            </div>
+
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded transition duration-200 shadow-md">
+                CALCULAR PRECIO
+            </button>
+        </form>
+
+        <!-- Resultados -->
+        <div id="result" class="mt-6 text-center hidden p-4 bg-green-50 rounded-lg border border-green-200">
+            <p class="text-gray-600 text-sm uppercase tracking-wide">Valor Estimado</p>
+            <p id="priceValue" class="text-4xl font-extrabold text-green-700 mt-1"></p>
+        </div>
+        <div id="error" class="mt-6 text-center hidden p-4 bg-red-50 rounded-lg border border-red-200 text-red-600"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('houseForm');
+        const resultDiv = document.getElementById('result');
+        const errorDiv = document.getElementById('error');
+        const priceText = document.getElementById('priceValue');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            resultDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+            
+            const data = {
+                yearly_median_income: document.getElementById('income').value,
+                housing_median_age: document.getElementById('age').value,
+                median_rooms: document.getElementById('rooms').value,
+                median_bedrooms: document.getElementById('bedrooms').value,
+                households: document.getElementById('households').value,
+                ocean_proximity: document.getElementById('proximity').value
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if(result.error) {
+                    errorDiv.innerText = result.error;
+                    errorDiv.classList.remove('hidden');
+                } else {
+                    const precio = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(result.prediction);
+                    priceText.innerText = precio;
+                    resultDiv.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorDiv.innerText = "Error: No se puede conectar con el servidor.";
+                errorDiv.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
