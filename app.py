@@ -4,8 +4,8 @@ from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 
-# Librerías de Machine Learning
-from sklearn.ensemble import RandomForestRegressor
+# --- CAMBIO: Importamos Gradient Boosting ---
+from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
@@ -14,12 +14,11 @@ app = Flask(__name__)
 CORS(app)
 
 # --- CONFIGURACIÓN ---
-# Usamos el archivo que acabas de subir
 DATA_FILE = 'dataset_sinescalar.csv' 
 
 model_pipeline = None
 
-# Definimos las columnas numéricas que necesitan escalado
+# Columnas numéricas
 NUMERIC_FEATURES = [
     'housing_median_age', 
     'households', 
@@ -28,13 +27,12 @@ NUMERIC_FEATURES = [
     'median_bedrooms'
 ]
 
-# Definimos las columnas de Categoría que ya vienen en tu CSV
+# Columnas categóricas (One-Hot)
 CAT_FEATURES = [
     'ocean_proximity_INLAND',
     'ocean_proximity_ISLAND',
     'ocean_proximity_NEAR BAY',
     'ocean_proximity_NEAR OCEAN'
-    # Nota: Tu CSV no parece tener la columna '<1H OCEAN', así que la trataremos como la base (todo 0)
 ]
 
 def train_model():
@@ -47,11 +45,8 @@ def train_model():
     print(f"Cargando {DATA_FILE}...")
     df = pd.read_csv(DATA_FILE)
 
-    # Definir Features (X) y Objetivo (y)
-    # Combinamos las listas de columnas que definimos arriba
+    # Rellenar columnas faltantes por seguridad
     all_features = NUMERIC_FEATURES + CAT_FEATURES
-    
-    # Verificación de seguridad: si falta alguna columna, la creamos en 0
     for col in all_features:
         if col not in df.columns:
             df[col] = 0
@@ -59,9 +54,9 @@ def train_model():
     X = df[all_features]
     y = df['median_house_value']
 
-    print("Entrenando Pipeline (Escalador Automático + Random Forest)...")
+    print("Entrenando Pipeline (Escalador + Gradient Boosting)...")
     
-    # 1. El Preprocesador: Escala SOLO los números, deja pasar los 0s y 1s de las categorías
+    # 1. Preprocesador
     preprocessor = ColumnTransformer(
         transformers=[
             ('num', StandardScaler(), NUMERIC_FEATURES)
@@ -69,14 +64,15 @@ def train_model():
         remainder='passthrough' 
     )
 
-    # 2. La Tubería (Pipeline): Preprocesa -> Predice
+    # 2. Pipeline con Gradient Boosting
+    # Usamos parámetros estándar robustos (n_estimators=100, learning_rate=0.1)
     model_pipeline = Pipeline([
         ('preprocessor', preprocessor),
-        ('regressor', RandomForestRegressor(n_estimators=100, random_state=42))
+        ('regressor', GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, max_depth=3, random_state=42))
     ])
 
     model_pipeline.fit(X, y)
-    print("✅ Modelo entrenado correctamente con datos reales.")
+    print("✅ Modelo Gradient Boosting entrenado correctamente.")
 
 # Entrenar al arrancar
 train_model()
@@ -93,36 +89,28 @@ def predict():
     try:
         data = request.get_json()
         
-        # Construir los datos de entrada
+        # Construir entrada
         input_data = {}
         
-        # Datos numéricos
         input_data['housing_median_age'] = [float(data['housing_median_age'])]
         input_data['households'] = [float(data['households'])]
         input_data['yearly_median_income'] = [float(data['yearly_median_income'])]
         input_data['median_rooms'] = [float(data['median_rooms'])]
         input_data['median_bedrooms'] = [float(data['median_bedrooms'])]
         
-        # Datos categóricos (Convertir selección a One-Hot para que coincida con el CSV)
         prox = data['ocean_proximity']
-        
-        # Poner todas las categorías en 0 primero
         for col in CAT_FEATURES:
             input_data[col] = [0]
             
-        # Activar la seleccionada
         if prox == 'INLAND': input_data['ocean_proximity_INLAND'] = [1]
         elif prox == 'ISLAND': input_data['ocean_proximity_ISLAND'] = [1]
         elif prox == 'NEAR BAY': input_data['ocean_proximity_NEAR BAY'] = [1]
         elif prox == 'NEAR OCEAN': input_data['ocean_proximity_NEAR OCEAN'] = [1]
         
-        # Convertir a DataFrame
         df_input = pd.DataFrame(input_data)
-        
-        # Ordenar columnas igual que en el entrenamiento
         df_input = df_input[NUMERIC_FEATURES + CAT_FEATURES]
         
-        # Predecir (El pipeline escala automáticamente)
+        # Predecir
         prediction = model_pipeline.predict(df_input)[0]
         
         return jsonify({'prediction': round(prediction, 2)})
