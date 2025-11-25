@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block contenido %}
+<div style="max-width: 600px; margin: 0 auto;">
+    <h1>🏡 Realizar Predicción</h1>
+
+    {% if error %}
+      <div class="error">Error: {{ error }}</div>
+    {% endif %}
+
+    <form method="POST" style="display: grid; gap: 15px;">
+        <!-- Inputs Numéricos -->
+        <div class="campo">
+            <label>Ingreso Medio Anual ($):</label>
+            <input type="number" step="any" name="yearly_median_income" required placeholder="Ej: 60000">
+        </div>
+        <div class="campo">
+            <label>Edad de la Vivienda:</label>
+            <input type="number" step="any" name="housing_median_age" required placeholder="Ej: 30">
+        </div>
+        <div class="campo">
+            <label>Habitaciones (Promedio):</label>
+            <input type="number" step="any" name="median_rooms" required value="5.5">
+        </div>
+        <div class="campo">
+            <label>Dormitorios (Promedio):</label>
+            <input type="number" step="any" name="median_bedrooms" required value="1.1">
+        </div>
+        <div class="campo">
+            <label>Personas por Casa (Households):</label>
+            <input type="number" step="any" name="households" required value="2.5">
+        </div>
+
+     
+        <div class="campo">
+            <label>Ubicación:</label>
+            <select name="ocean_proximity" style="padding: 8px; width: 236px;">
+                <option value="INLAND">Interior (INLAND)</option>
+                <option value="NEAR_BAY">Bahía (NEAR BAY)</option>
+                <option value="NEAR_OCEAN">Cerca Océano (NEAR OCEAN)</option>
+                <option value="ISLAND">Isla</option>
+                <option value="<1H OCEAN">&lt;1H OCEAN</option>
+            </select>
+        </div>
+
+        <button type="submit" style="background-color: #2563eb; color: white; border: none; font-size: 16px;">Calcular Precio</button>
+    </form>
+
+    {% if resultado %}
+        <div style="margin-top: 20px; padding: 20px; background-color: #dcfce7; border: 1px solid #22c55e; border-radius: 8px; text-align: center;">
+            <h3 style="color: #15803d; margin: 0;">Valor Estimado:</h3>
+            <h1 style="color: #14532d; font-size: 40px; margin: 10px 0;">${{ "{:,.2f}".format(resultado) }}</h1>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
